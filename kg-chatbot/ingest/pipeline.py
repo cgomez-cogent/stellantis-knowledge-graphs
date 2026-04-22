@@ -1,10 +1,10 @@
 """
-Pipeline de ingesta del codebase hacia Neo4j via AST parsing.
+Codebase ingestion pipeline to Neo4j via AST parsing.
 
-Uso:
-    python -m ingest.pipeline ./ruta/al/codebase
+Usage:
+    python -m ingest.pipeline ./path/to/codebase
 
-Para empezar desde cero en Neo4j, la pipeline limpia el grafo antes de ingestar.
+To start fresh in Neo4j, the pipeline clears the graph before ingesting.
 """
 
 import asyncio
@@ -41,17 +41,17 @@ def _save_checkpoint(path: Path, done: set[str]) -> None:
 
 
 async def run_ingestion(directory: str) -> None:
-    print(f"\n[ingesta] Directorio: {directory}")
+    print(f"\n[ingestion] Directory: {directory}")
 
     root = Path(directory).resolve()
     if not root.exists():
-        print(f"[error] El directorio no existe: {root}")
+        print(f"[error] Directory does not exist: {root}")
         return
 
     files = list(walk_files(str(root)))
     total = len(files)
     if total == 0:
-        print("[aviso] No se encontraron archivos .py compatibles.")
+        print("[warning] No compatible .py files found.")
         return
 
     ckpt_path = _checkpoint_path(str(root))
@@ -59,18 +59,18 @@ async def run_ingestion(directory: str) -> None:
     pending = [f for f in files if str(f.relative_to(root)).replace("\\", "/") not in done_paths]
 
     if done_paths:
-        print(f"[checkpoint] {len(done_paths)} archivos ya procesados, retomando...")
-    print(f"[ingesta] {len(pending)} archivos pendientes de {total} totales.\n")
+        print(f"[checkpoint] {len(done_paths)} files already processed, resuming...")
+    print(f"[ingestion] {len(pending)} pending files out of {total} total.\n")
 
     if not pending:
-        print("[ingesta] Nada nuevo que procesar. Grafo ya está actualizado.")
+        print("[ingestion] Nothing new to process. Graph is already up to date.")
         return
 
     driver = get_neo4j_driver()
 
-    # Limpiar grafo solo en ingesta completa (no en retoma de checkpoint)
+    # Clear graph only on full ingestion (not when resuming from checkpoint)
     if not done_paths:
-        print("[ingesta] Limpiando grafo existente...")
+        print("[ingestion] Clearing existing graph...")
         clear_graph(driver)
 
     ingested = 0
@@ -80,7 +80,7 @@ async def run_ingestion(directory: str) -> None:
                 rel = str(path.relative_to(root)).replace("\\", "/")
                 data = parse_module(path, root)
                 if data is None:
-                    print(f"  [skip] {rel} (error de sintaxis o lectura)")
+                    print(f"  [skip] {rel} (syntax or read error)")
                     done_paths.add(rel)
                     continue
 
@@ -89,26 +89,26 @@ async def run_ingestion(directory: str) -> None:
                 ingested += 1
                 print(f"  [{ingested}/{len(pending)}] {rel}")
 
-                # Checkpoint cada 20 archivos
+                # Checkpoint every 20 files
                 if ingested % 20 == 0:
                     _save_checkpoint(ckpt_path, done_paths)
 
     except Exception as exc:
         _save_checkpoint(ckpt_path, done_paths)
         print(f"\n[error] {exc}")
-        print(f"  Checkpoint guardado: {ckpt_path}")
-        print(f"  Vuelve a ejecutar el mismo comando para retomar.")
+        print(f"  Checkpoint saved: {ckpt_path}")
+        print(f"  Re-run the same command to resume.")
         driver.close()
         return
 
     _save_checkpoint(ckpt_path, done_paths)
     driver.close()
-    print(f"\n[ingesta] Completada. {ingested} archivos procesados.")
+    print(f"\n[ingestion] Completed. {ingested} files processed.")
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Uso: python -m ingest.pipeline <directorio>")
+        print("Usage: python -m ingest.pipeline <directory>")
         sys.exit(1)
 
     logging.basicConfig(level=logging.WARNING)

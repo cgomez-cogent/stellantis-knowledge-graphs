@@ -1,11 +1,11 @@
-# KG Chatbot — Knowledge Graph Chatbot para tu Codebase
+# KG Chatbot — Knowledge Graph Chatbot for your Codebase
 
-Indexa cualquier codebase en un grafo de conocimiento y hazle preguntas en lenguaje natural.
+Index any codebase into a knowledge graph and ask it questions in natural language.
 
 ```
-"¿Qué servicios dependen de AuthModule?"
-"¿Cómo funciona el flujo de pagos?"
-"¿Qué archivos importan la clase UserRepository?"
+"What services depend on AuthModule?"
+"How does the payment flow work?"
+"What files import the UserRepository class?"
 ```
 
 **Stack:** LightRAG · Neo4j · LangChain · Gemini 2.0 Flash (free tier) · Streamlit
@@ -14,18 +14,18 @@ Indexa cualquier codebase en un grafo de conocimiento y hazle preguntas en lengu
 
 ## Quick Start
 
-### 1. Levantar Neo4j
+### 1. Start Neo4j
 
 ```bash
-# Copia el archivo de configuración
+# Copy the configuration file
 cp .env.example .env
-# Edita .env con tu GOOGLE_API_KEY y elige un NEO4J_PASSWORD
+# Edit .env with your GOOGLE_API_KEY and choose a NEO4J_PASSWORD
 
 docker compose up -d
-# Neo4j browser disponible en http://localhost:7474
+# Neo4j browser available at http://localhost:7474
 ```
 
-### 2. Instalar dependencias Python
+### 2. Install Python dependencies
 
 ```bash
 python -m venv .venv
@@ -34,112 +34,112 @@ source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. Indexar tu codebase
+### 3. Index your codebase
 
 ```bash
-# Apunta al directorio raíz de tu proyecto
-python -m ingest.pipeline /ruta/a/tu/proyecto
+# Point to the root directory of your project
+python -m ingest.pipeline /path/to/your/project
 
-# Ejemplo:
-python -m ingest.pipeline ../mi-api
+# Example:
+python -m ingest.pipeline ../my-api
 ```
 
-El proceso imprime el progreso archivo por archivo y puede tardar varios minutos
-dependiendo del tamaño del codebase y los límites de la API de Gemini.
+The process prints progress file by file and may take several minutes
+depending on the codebase size and Gemini API limits.
 
-### 4. Lanzar el chatbot
+### 4. Launch the chatbot
 
 ```bash
 streamlit run app.py
 ```
 
-La UI abre en http://localhost:8501
+The UI opens at http://localhost:8501
 
 ---
 
-## Apuntar a un codebase diferente
+## Point to a different codebase
 
-Desde la **sidebar** de la app puedes ingresar cualquier ruta y hacer clic en
-**"Iniciar ingesta"** para re-indexar sin salir de la interfaz.
+From the app **sidebar** you can enter any path and click
+**"Start ingestion"** to re-index without leaving the interface.
 
-O desde la terminal:
+Or from the terminal:
 
 ```bash
-python -m ingest.pipeline ./otro-proyecto
+python -m ingest.pipeline ./other-project
 ```
 
-Los archivos soportados son: `.py` `.ts` `.js` `.md` `.txt`
+Supported file types: `.py` `.ts` `.js` `.md` `.txt`
 
-Carpetas ignoradas automáticamente: `node_modules`, `.git`, `__pycache__`,
+Automatically ignored directories: `node_modules`, `.git`, `__pycache__`,
 `dist`, `build`, `.venv`
 
 ---
 
-## Migración a Amazon Neptune
+## Migration to Amazon Neptune
 
-Para usar Amazon Neptune en producción en lugar de Neo4j local,
-**solo cambia estas 3 variables de entorno** en tu `.env` — no se requiere
-ningún cambio en el código:
+To use Amazon Neptune in production instead of local Neo4j,
+**just change these 3 environment variables** in your `.env` — no code
+changes required:
 
 ```bash
-# Paso 1: Actualiza el endpoint
-NEO4J_URI=bolt+s://<tu-cluster>.neptune.amazonaws.com:8182
+# Step 1: Update the endpoint
+NEO4J_URI=bolt+s://<your-cluster>.neptune.amazonaws.com:8182
 
-# Paso 2: Configura credenciales IAM (o déjalas vacías si usas IAM auth)
+# Step 2: Configure IAM credentials (or leave empty if using IAM auth)
 NEO4J_USER=
 NEO4J_PASSWORD=
 
-# Paso 3: Reinicia la app
+# Step 3: Restart the app
 streamlit run app.py
 ```
 
-Neptune es compatible con el protocolo Bolt y Cypher via el driver
-`neo4j-python-driver`, que es exactamente lo que usan LangChain y LightRAG.
+Neptune is compatible with the Bolt protocol and Cypher via the
+`neo4j-python-driver`, which is exactly what LangChain and LightRAG use.
 
 ---
 
-## Preguntas de ejemplo
+## Example questions
 
-Una vez indexado tu codebase, puedes preguntar cosas como:
+Once your codebase is indexed, you can ask things like:
 
-| Pregunta | Tipo |
+| Question | Type |
 |----------|------|
-| ¿Qué módulos importa `UserService`? | Dependencias |
-| ¿Qué archivos definen endpoints de la API? | Estructura |
-| ¿Cómo está conectado `PaymentController` con la base de datos? | Flujo |
-| ¿Qué clases extienden `BaseRepository`? | Herencia |
-| ¿Qué funciones llaman a `sendEmail`? | Referencias |
-| ¿Dónde se maneja la autenticación JWT? | Búsqueda semántica |
+| What modules does `UserService` import? | Dependencies |
+| What files define API endpoints? | Structure |
+| How is `PaymentController` connected to the database? | Flow |
+| What classes extend `BaseRepository`? | Inheritance |
+| What functions call `sendEmail`? | References |
+| Where is JWT authentication handled? | Semantic search |
 
 ---
 
-## Variables de entorno
+## Environment variables
 
-| Variable | Descripción | Requerida |
-|----------|-------------|-----------|
-| `GOOGLE_API_KEY` | API key de Gemini (gratis en [aistudio.google.com](https://aistudio.google.com/app/apikey)) | Sí |
-| `NEO4J_URI` | URI de conexión Bolt | Sí |
-| `NEO4J_USER` | Usuario de Neo4j | Sí |
-| `NEO4J_PASSWORD` | Contraseña de Neo4j | Sí |
-| `NEO4J_DATABASE` | Base de datos (default: `neo4j`) | No |
-| `LIGHTRAG_WORKING_DIR` | Carpeta de caché de LightRAG (default: `./lightrag_cache`) | No |
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `GOOGLE_API_KEY` | Gemini API key (free at [aistudio.google.com](https://aistudio.google.com/app/apikey)) | Yes |
+| `NEO4J_URI` | Bolt connection URI | Yes |
+| `NEO4J_USER` | Neo4j username | Yes |
+| `NEO4J_PASSWORD` | Neo4j password | Yes |
+| `NEO4J_DATABASE` | Database name (default: `neo4j`) | No |
+| `LIGHTRAG_WORKING_DIR` | LightRAG cache directory (default: `./lightrag_cache`) | No |
 
 ---
 
-## Estructura del proyecto
+## Project structure
 
 ```
 kg-chatbot/
-├── docker-compose.yml    Neo4j local
-├── .env.example          Template de configuración
-├── requirements.txt      Dependencias Python
+├── docker-compose.yml    Local Neo4j
+├── .env.example          Configuration template
+├── requirements.txt      Python dependencies
 ├── graph/
-│   └── store.py          Fábrica de conexiones Neo4j + LightRAG
+│   └── store.py          Neo4j connection factory
 ├── ingest/
-│   ├── loaders.py        Lector de archivos del codebase
-│   └── pipeline.py       Pipeline de ingesta (entry point)
+│   ├── loaders.py        Codebase file reader
+│   └── pipeline.py       Ingestion pipeline (entry point)
 ├── chatbot/
-│   ├── memory.py         Memoria de conversación
+│   ├── memory.py         Conversation memory
 │   └── chain.py          GraphCypherQAChain + helper ask()
 └── app.py                Streamlit UI
 ```

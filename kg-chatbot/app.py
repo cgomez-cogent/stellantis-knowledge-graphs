@@ -1,7 +1,7 @@
 """
 Streamlit UI — Knowledge Graph Chatbot
 
-Ejecutar con:
+Run with:
     streamlit run app.py
 """
 
@@ -19,7 +19,7 @@ st.set_page_config(
     layout="wide",
 )
 
-# ── Inicialización del estado de sesión ─────────────────────────────────────
+# ── Session state initialization ────────────────────────────────────────────
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -41,7 +41,7 @@ if "active_model" not in st.session_state:
     st.session_state.active_model = None
 
 LLM_OPTIONS = {
-    "google": ["gemini-pro", "gemini-1.5-pro"],
+    "google": ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"],
     "openai": ["gpt-4", "gpt-4o", "gpt-3.5-turbo"],
     "anthropic": ["claude-3-opus", "claude-3-sonnet"]
 }
@@ -49,34 +49,33 @@ LLM_OPTIONS = {
 
 with st.sidebar:
     st.title("🔍 KG Chatbot")
-    st.caption("Consulta tu codebase en lenguaje natural")
+    st.caption("Query your codebase in natural language")
 
     st.divider()
 
-    st.subheader("Configuración del LLM")
-    # Definir providers y modelos
+    st.subheader("LLM Configuration")
 
     # Select provider
     provider = st.selectbox(
-        "Proveedor de LLM",
+        "LLM Provider",
         options=list(LLM_OPTIONS.keys()),
-        help="Selecciona el proveedor del modelo.",
+        help="Select the model provider.",
         key="llm_provider",
     )
 
-    # Select model dinámico
+    # Dynamic model selection
     model = st.selectbox(
-        "Modelo de LLM",
+        "LLM Model",
         options=LLM_OPTIONS[provider],
-        help="Selecciona el modelo según el proveedor elegido.",
+        help="Select the model based on the chosen provider.",
         key="llm_model",
     )
 
-    # Construir o reconstruir el chain si cambiaron provider/model
+    # Build or rebuild the chain if provider/model changed
     if provider != st.session_state.active_provider or model != st.session_state.active_model:
-        with st.spinner(f"Cargando {provider} / {model}..."):
+        with st.spinner(f"Loading {provider} / {model}..."):
             try:
-                st.session_state.chain = build_chain(st.session_state.memory, model=model, provider=provider)
+                st.session_state.chain = build_chain(model=model, provider=provider)
                 st.session_state.chain_error = None
                 st.session_state.active_provider = provider
                 st.session_state.active_model = model
@@ -86,72 +85,72 @@ with st.sidebar:
                 st.session_state.active_provider = provider
                 st.session_state.active_model = model
 
-    # Última query Cypher generada
-    st.subheader("Cypher generado")
+    # Last generated Cypher query
+    st.subheader("Generated Cypher")
     if st.session_state.last_cypher:
         st.code(st.session_state.last_cypher, language="cypher")
     else:
-        st.caption("La query Cypher aparecerá aquí después de tu primera pregunta.")
+        st.caption("The Cypher query will appear here after your first question.")
 
     st.divider()
 
-    # Re-ingesta
-    st.subheader("Re-indexar codebase")
+    # Re-ingestion
+    st.subheader("Re-index codebase")
     folder_path = st.text_input(
-        "Ruta del codebase",
-        placeholder="/ruta/al/proyecto",
-        help="Ruta absoluta o relativa al codebase que quieres indexar.",
+        "Codebase path",
+        placeholder="/path/to/project",
+        help="Absolute or relative path to the codebase you want to index.",
     )
-    if st.button("▶ Iniciar ingesta", disabled=not folder_path):
-        with st.spinner(f"Indexando {folder_path}..."):
+    if st.button("▶ Start ingestion", disabled=not folder_path):
+        with st.spinner(f"Indexing {folder_path}..."):
             try:
                 asyncio.run(run_ingestion(folder_path))
-                st.success("Ingesta completada. Recarga la página para usar el grafo actualizado.")
-                # Forzar recarga del chain para reflejar el nuevo esquema
-                st.session_state.chain = build_chain(st.session_state.memory, model=model, provider=provider)
+                st.success("Ingestion completed. Reload the page to use the updated graph.")
+                # Force chain reload to reflect the new schema
+                st.session_state.chain = build_chain(model=model, provider=provider)
             except Exception as exc:
-                st.error(f"Error durante la ingesta: {exc}")
+                st.error(f"Error during ingestion: {exc}")
 
     st.divider()
     st.caption("Neo4j browser → http://localhost:7474")
 
-# ── Área principal de chat ───────────────────────────────────────────────────
+# ── Main chat area ───────────────────────────────────────────────────────────
 
-st.title("💬 Chat con tu codebase")
+st.title("💬 Chat with your codebase")
 
-# Mostrar error de conexión si ocurrió al inicializar
+# Show connection error if it occurred during initialization
 if st.session_state.chain_error:
     st.error(
-        f"No se pudo conectar con Neo4j:\n\n{st.session_state.chain_error}\n\n"
-        "Verifica que Docker esté corriendo y que tu `.env` sea correcto."
+        f"Could not connect to Neo4j:\n\n{st.session_state.chain_error}\n\n"
+        "Verify that Docker is running and your `.env` is correct."
     )
 
-# Renderizar historial de mensajes
+# Render message history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# Input del usuario
-if prompt := st.chat_input("Pregunta sobre tu codebase..."):
-    # Mostrar mensaje del usuario
+# User input
+if prompt := st.chat_input("Ask about your codebase..."):
+    # Show user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Generar respuesta
+    # Generate response
     with st.chat_message("assistant"):
         if st.session_state.chain is None:
-            answer = "No hay conexión con Neo4j. Verifica la configuración en el sidebar."
+            answer = "No Neo4j connection. Check the configuration in the sidebar."
             st.markdown(answer)
         else:
-            with st.spinner("Consultando el grafo..."):
+            with st.spinner("Querying the graph..."):
                 try:
-                    result = ask(st.session_state.chain, prompt)
+                    result = ask(st.session_state.chain, prompt, memory=st.session_state.memory)
                     answer = result["answer"]
                     st.session_state.last_cypher = result["cypher"]
                     st.session_state.messages.append({"role": "assistant", "content": answer})
                     st.rerun()
                 except Exception as exc:
-                    answer = f"Error al consultar el grafo: {exc}"
+                    answer = f"Error querying the graph: {exc}"
                     st.error(answer)
                     st.session_state.messages.append({"role": "assistant", "content": answer})

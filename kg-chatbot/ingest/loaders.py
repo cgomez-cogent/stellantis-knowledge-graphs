@@ -1,8 +1,8 @@
 """
-Utilidades para descubrir archivos Python del codebase.
+Utilities for discovering Python files in the codebase.
 
-walk_files(directory) → genera Path de cada archivo .py soportado,
-                         saltando carpetas irrelevantes.
+walk_files(directory) → yields Path for each supported .py file,
+                         skipping irrelevant directories.
 """
 
 from pathlib import Path
@@ -27,7 +27,7 @@ SUPPORTED_EXTENSIONS = {".py"}
 
 
 def walk_files(directory: str) -> Iterator[Path]:
-    """Recorre directory recursivamente y yield cada archivo .py soportado."""
+    """Recursively traverses directory and yields each supported .py file."""
     root = Path(directory).resolve()
     for path in root.rglob("*"):
         if any(part in SKIP_DIRS for part in path.parts):

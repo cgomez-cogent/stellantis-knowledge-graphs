@@ -1,17 +1,17 @@
 """
-Fábrica central de conexiones Neo4j.
+Central factory for Neo4j connections.
 
-Exporta:
-  get_neo4j_graph()  → Neo4jGraph  (para LangChain GraphCypherQAChain)
-  get_neo4j_driver() → Driver      (para ingesta directa via graph_writer)
+Exports:
+  get_neo4j_graph()  → Neo4jGraph  (for LangChain GraphCypherQAChain)
+  get_neo4j_driver() → Driver      (for direct ingestion via graph_writer)
 
-Migración a Amazon Neptune
-──────────────────────────
-Para apuntar a Neptune en lugar de Neo4j local, cambia estas variables en .env:
+Migration to Amazon Neptune
+───────────────────────────
+To point to Neptune instead of local Neo4j, change these variables in .env:
 
-  NEO4J_URI      → bolt+s://<tu-cluster>.neptune.amazonaws.com:8182
-  NEO4J_USER     → (usuario IAM, o vacío si usas autenticación IAM)
-  NEO4J_PASSWORD → (token IAM, o vacío)
+  NEO4J_URI      → bolt+s://<your-cluster>.neptune.amazonaws.com:8182
+  NEO4J_USER     → (IAM user, or empty if using IAM auth)
+  NEO4J_PASSWORD → (IAM token, or empty)
 """
 
 import os
@@ -29,7 +29,7 @@ _NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", "neo4j")
 
 
 def get_neo4j_graph() -> Neo4jGraph:
-    """Retorna un Neo4jGraph listo para GraphCypherQAChain."""
+    """Returns a ready-to-use Neo4jGraph for GraphCypherQAChain."""
     return Neo4jGraph(
         url=_NEO4J_URI,
         username=_NEO4J_USER,
@@ -39,7 +39,7 @@ def get_neo4j_graph() -> Neo4jGraph:
 
 
 def get_neo4j_driver() -> Driver:
-    """Retorna el driver nativo de Neo4j para operaciones de escritura en ingesta."""
+    """Returns the native Neo4j driver for write operations during ingestion."""
     return GraphDatabase.driver(
         _NEO4J_URI,
         auth=(_NEO4J_USER, _NEO4J_PASSWORD),
