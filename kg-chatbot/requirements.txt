@@ -1,0 +1,29 @@
+# Knowledge Graph Chatbot — dependencias
+# Versiones pinadas por major para reproducibilidad.
+# Si hay conflictos, ejecuta: pip install -r requirements.txt --upgrade
+
+# ── Neo4j ────────────────────────────────────────────────────────────────────
+neo4j>=5.0,<7                  # Driver oficial Python para Neo4j/Neptune
+
+# ── LangChain ────────────────────────────────────────────────────────────────
+langchain>=0.3,<2
+langchain-community>=0.3,<1
+langchain-neo4j>=0.3,<1        # GraphCypherQAChain + Neo4jGraph
+
+# ── Gemini (LLM, free tier) ──────────────────────────────────────────────────
+google-genai>=1.0,<2           # SDK de Google para Gemini
+langchain-google-genai>=2.0,<3 # Integración LangChain ↔ Gemini
+
+# ── OpenAI (LLM alternativo) ─────────────────────────────────────────────────
+openai>=1.0,<2                 # SDK de OpenAI para GPT-4, etc.
+langchain-openai>=0.3,<1       # Integración LangChain ↔
+
+# --- Anthropic (LLM alternativo) ───────────────────────────────────────────────
+anthropic>=0.1,<1              # SDK de Anthropic para Claude, etc.
+langchain-anthropic>=0.1,<1    # Integración LangChain ↔
+
+# ── UI ───────────────────────────────────────────────────────────────────────
+streamlit>=1.30,<2
+
+# ── Config ───────────────────────────────────────────────────────────────────
+python-dotenv>=1.0,<2

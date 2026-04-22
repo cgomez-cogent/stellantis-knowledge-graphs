@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /c/GitHub/stellantis-knowledge-graphs log --oneline -5)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:api.python.langchain.com)",
+      "Bash(python -c \"import lightrag; print\\(dir\\(lightrag\\)\\)\")",
+      "Bash(venv/Scripts/python -c \"import lightrag; print\\(dir\\(lightrag\\)\\)\")",
+      "Bash(venv/Scripts/python -c \"import lightrag; print\\(lightrag.__version__\\)\")",
+      "Bash(venv/Scripts/python -c \"from lightrag.utils import EmbeddingFunc; print\\('ok utils'\\)\")",
+      "Bash(venv/Scripts/python -c \"from lightrag.base import EmbeddingFunc; print\\('ok base'\\)\")",
+      "Bash(venv/Scripts/python -c \"import lightrag.lightrag as l; print\\([x for x in dir\\(l\\) if 'Embed' in x or 'LightRAG' in x]\\)\")",
+      "Bash(venv/Scripts/python -c \"from lightrag.lightrag import LightRAG, EmbeddingFunc; print\\('ok lightrag.lightrag'\\)\")",
+      "Bash(venv/Scripts/python -c \"import inspect, lightrag.lightrag as l; sig = inspect.signature\\(l.LightRAG.__init__\\); print\\(list\\(sig.parameters.keys\\(\\)\\)\\)\")",
+      "Bash(venv/Scripts/python -c \"from google import genai; print\\('ok google.genai'\\)\")",
+      "Bash(venv/Scripts/python -c \"import google.generativeai; print\\('ok old'\\)\")",
+      "Bash(venv/Scripts/python -c ' *)",
+      "Bash(venv/Scripts/pip install *)",
+      "Bash(python3 -c ' *)",
+      "Bash(venv/Scripts/python.exe -c ' *)",
+      "Bash(python3 -m json.tool)"
+    ]
+  }
+}
