@@ -20,7 +20,8 @@
       "Bash(venv/Scripts/pip install *)",
       "Bash(python3 -c ' *)",
       "Bash(venv/Scripts/python.exe -c ' *)",
-      "Bash(python3 -m json.tool)"
+      "Bash(python3 -m json.tool)",
+      "Bash(grep -E \"\\\\.\\(py|html|css|js|ts|jsx|tsx\\)$\")"
     ]
   }
 }

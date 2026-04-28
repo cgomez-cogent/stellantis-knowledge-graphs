@@ -23,10 +23,11 @@ load_dotenv(
 _CYPHER_PROMPT = PromptTemplate(
     input_variables=["schema", "question"],
     template="""You are an expert in Neo4j graph databases. Translate questions
-about a Python codebase into valid Cypher queries.
+about a codebase (Python or Terraform) into valid Cypher queries.
 
-The graph represents the static structure of the code with this schema:
+The graph may contain two types of content:
 
+── PYTHON CODEBASE ───────────────────────────────────────────────────────────
 Nodes and their key properties:
 - Module    : name, file_path
 - Class     : name, file_path, line, docstring
@@ -43,22 +44,44 @@ Relationships:
 - (Function)-[:HAS_PARAMETER]->(Parameter)
 - (Module)-[:IMPORTS]->(Module)
 
-Examples of valid queries:
-
-Exact name search:
-- Methods of a class    : MATCH (:Class {{name:'CalloutsExtractor'}})-[:HAS_METHOD]->(m:Method) RETURN m.name, m.docstring
-- Parameters of a method: MATCH (:Method {{name:'extract_callouts'}})-[:HAS_PARAMETER]->(p:Parameter) RETURN p.name, p.annotation
-- Classes of a module   : MATCH (:Module {{name:'callouts_extractor'}})-[:DEFINES_CLASS]->(c:Class) RETURN c.name
+Python examples:
+- Methods of a class    : MATCH (:Class {{name:'MyClass'}})-[:HAS_METHOD]->(m:Method) RETURN m.name, m.docstring
+- Parameters of a method: MATCH (:Method {{name:'my_method'}})-[:HAS_PARAMETER]->(p:Parameter) RETURN p.name, p.annotation
 - Imports of a module   : MATCH (:Module {{name:'ingest.pipeline'}})-[:IMPORTS]->(i:Module) RETURN i.name
 - Inheritance           : MATCH (c:Class)-[:INHERITS_FROM]->(b:Class) RETURN c.name, b.name
 
-Semantic keyword search (use this when the question is conceptual, not an exact name):
-- Functions related to S3  : MATCH (n) WHERE toLower(n.name) CONTAINS 's3' OR toLower(n.docstring) CONTAINS 's3' RETURN labels(n)[0] AS type, n.name AS name, n.docstring AS description LIMIT 10
-- Functions that parse      : MATCH (n:Function) WHERE toLower(n.name) CONTAINS 'parse' OR toLower(n.docstring) CONTAINS 'parse' RETURN n.name, n.docstring LIMIT 10
-- Everything related to XML : MATCH (n) WHERE toLower(n.name) CONTAINS 'xml' OR toLower(n.docstring) CONTAINS 'xml' RETURN labels(n)[0] AS type, n.name AS name, n.docstring AS description LIMIT 10
+── TERRAFORM INFRASTRUCTURE ──────────────────────────────────────────────────
+Nodes and their key properties:
+- TFFile     : name, file_path
+- Resource   : type, name, file_path, description   (e.g. type='aws_s3_bucket', name='my_bucket')
+- TFModule   : name, source, version, file_path
+- Variable   : name, var_type, default, description, file_path
+- Output     : name, value, description, file_path
+- DataSource : type, name, file_path, description
+- Provider   : type
 
-IMPORTANT: If the question is conceptual (How is X done? What does Y do? Where is the logic of Z?),
-extract the keywords from the concept and use CONTAINS on name and docstring to find relevant nodes.
+Relationships:
+- (TFFile)-[:DEFINES_RESOURCE]->(Resource)
+- (TFFile)-[:CALLS_MODULE]->(TFModule)
+- (TFFile)-[:DEFINES_VARIABLE]->(Variable)
+- (TFFile)-[:DEFINES_OUTPUT]->(Output)
+- (TFFile)-[:USES_DATA]->(DataSource)
+- (TFFile)-[:USES_PROVIDER]->(Provider)
+
+Terraform examples:
+- All S3 buckets        : MATCH (r:Resource {{type:'aws_s3_bucket'}}) RETURN r.name, r.file_path
+- All resources in file : MATCH (:TFFile {{file_path:'main.tf'}})-[:DEFINES_RESOURCE]->(r:Resource) RETURN r.type, r.name
+- All variables         : MATCH (v:Variable) RETURN v.name, v.var_type, v.default, v.description
+- All outputs           : MATCH (o:Output) RETURN o.name, o.value, o.description
+- Modules used          : MATCH (f:TFFile)-[:CALLS_MODULE]->(m:TFModule) RETURN f.file_path, m.name, m.source
+- Providers declared    : MATCH (f:TFFile)-[:USES_PROVIDER]->(p:Provider) RETURN f.file_path, p.type
+- Data sources          : MATCH (f:TFFile)-[:USES_DATA]->(d:DataSource) RETURN d.type, d.name, f.file_path
+
+── SEMANTIC SEARCH (for conceptual questions) ────────────────────────────────
+Use CONTAINS on name/description/docstring when the question is about a concept:
+- Resources related to networking: MATCH (n:Resource) WHERE toLower(n.type) CONTAINS 'vpc' OR toLower(n.type) CONTAINS 'subnet' OR toLower(n.description) CONTAINS 'network' RETURN n.type, n.name, n.file_path LIMIT 20
+- Variables related to storage   : MATCH (v:Variable) WHERE toLower(v.name) CONTAINS 'storage' OR toLower(v.description) CONTAINS 'storage' RETURN v.name, v.description LIMIT 10
+- Functions that parse            : MATCH (n:Function) WHERE toLower(n.name) CONTAINS 'parse' OR toLower(n.docstring) CONTAINS 'parse' RETURN n.name, n.docstring LIMIT 10
 
 Graph schema (reference):
 {schema}
@@ -73,16 +96,16 @@ If you cannot build a valid query, respond with: MATCH (n) RETURN labels(n)[0] A
 # Prompt that guides the LLM to formulate the final answer
 _QA_PROMPT = PromptTemplate(
     input_variables=["context", "question"],
-    template="""You are an expert assistant that answers questions about a software
-codebase based on knowledge graph data.
+    template="""You are a helpful assistant with deep knowledge of the codebase.
+Answer the question directly and naturally, as if you already know the codebase well.
+Never start with phrases like "Based on the data", "According to the graph", or similar.
+Never mention where the information comes from — just answer.
+If the information is insufficient, say so briefly and suggest what to look for.
 
-Data retrieved from the graph:
+Context:
 {context}
 
 Question: {question}
-
-Answer clearly and concisely in English.
-If the data is insufficient to answer, state it explicitly.
 """,
 )
 

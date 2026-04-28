@@ -23,7 +23,7 @@ SKIP_DIRS = {
     "out",
 }
 
-SUPPORTED_EXTENSIONS = {".py"}
+SUPPORTED_EXTENSIONS = {".py", ".tf"}
 
 
 def walk_files(directory: str) -> Iterator[Path]:

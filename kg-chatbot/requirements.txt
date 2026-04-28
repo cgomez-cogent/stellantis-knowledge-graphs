@@ -25,5 +25,9 @@ langchain-anthropic>=0.1,<1    # Integración LangChain ↔
 # ── UI ───────────────────────────────────────────────────────────────────────
 streamlit>=1.30,<2
 
+# ── Visualization ─────────────────────────────────────────────────────────────
+graphistry>=0.33,<1              # Interactive graph visualization (Graphistry Hub)
+pandas>=2.0,<3                   # DataFrames for node/edge data
+
 # ── Config ───────────────────────────────────────────────────────────────────
 python-dotenv>=1.0,<2

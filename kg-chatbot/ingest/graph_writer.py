@@ -1,10 +1,15 @@
 """
-Writes parsed module data to Neo4j.
+Writes parsed module/file data to Neo4j.
 
-Schema:
+Python schema:
   Nodes:         Module, Class, Method, Function, Parameter
   Relationships: DEFINES_CLASS, DEFINES_FUNCTION, HAS_METHOD,
                  INHERITS_FROM, HAS_PARAMETER, IMPORTS
+
+Terraform schema:
+  Nodes:         TFFile, Resource, TFModule, Variable, Output, DataSource, Provider
+  Relationships: DEFINES_RESOURCE, CALLS_MODULE, DEFINES_VARIABLE,
+                 DEFINES_OUTPUT, USES_DATA, USES_PROVIDER
 """
 
 import logging
@@ -111,6 +116,123 @@ def _write_function(session: Session, func: dict, mod_name: str, file_path: str)
         mod_name=mod_name, func_name=func["name"], file_path=file_path,
     )
     _write_params(session, "Function", func["name"], file_path, None, func["params"])
+
+
+def write_parsed_tf_file(session: Session, data: dict) -> None:
+    file_path = data["file"]["file_path"]
+
+    session.run(
+        "MERGE (f:TFFile {file_path: $file_path}) SET f.name = $name",
+        file_path=file_path, name=data["file"]["name"],
+    )
+
+    for r in data["resources"]:
+        session.run(
+            """
+            MERGE (res:Resource {type: $type, name: $name, file_path: $file_path})
+            SET res.description = $description
+            """,
+            type=r["type"], name=r["name"], file_path=file_path,
+            description=r["description"],
+        )
+        session.run(
+            """
+            MATCH (f:TFFile {file_path: $file_path})
+            MATCH (res:Resource {type: $type, name: $name, file_path: $file_path})
+            MERGE (f)-[:DEFINES_RESOURCE]->(res)
+            """,
+            file_path=file_path, type=r["type"], name=r["name"],
+        )
+
+    for m in data["modules"]:
+        session.run(
+            """
+            MERGE (mod:TFModule {name: $name, file_path: $file_path})
+            SET mod.source = $source, mod.version = $version
+            """,
+            name=m["name"], file_path=file_path,
+            source=m["source"], version=m["version"],
+        )
+        session.run(
+            """
+            MATCH (f:TFFile {file_path: $file_path})
+            MATCH (mod:TFModule {name: $name, file_path: $file_path})
+            MERGE (f)-[:CALLS_MODULE]->(mod)
+            """,
+            file_path=file_path, name=m["name"],
+        )
+
+    for v in data["variables"]:
+        session.run(
+            """
+            MERGE (var:Variable {name: $name, file_path: $file_path})
+            SET var.var_type = $var_type, var.default = $default,
+                var.description = $description
+            """,
+            name=v["name"], file_path=file_path,
+            var_type=v["var_type"], default=v["default"],
+            description=v["description"],
+        )
+        session.run(
+            """
+            MATCH (f:TFFile {file_path: $file_path})
+            MATCH (var:Variable {name: $name, file_path: $file_path})
+            MERGE (f)-[:DEFINES_VARIABLE]->(var)
+            """,
+            file_path=file_path, name=v["name"],
+        )
+
+    for o in data["outputs"]:
+        session.run(
+            """
+            MERGE (out:Output {name: $name, file_path: $file_path})
+            SET out.value = $value, out.description = $description
+            """,
+            name=o["name"], file_path=file_path,
+            value=o["value"], description=o["description"],
+        )
+        session.run(
+            """
+            MATCH (f:TFFile {file_path: $file_path})
+            MATCH (out:Output {name: $name, file_path: $file_path})
+            MERGE (f)-[:DEFINES_OUTPUT]->(out)
+            """,
+            file_path=file_path, name=o["name"],
+        )
+
+    for d in data["data_sources"]:
+        session.run(
+            """
+            MERGE (ds:DataSource {type: $type, name: $name, file_path: $file_path})
+            SET ds.description = $description
+            """,
+            type=d["type"], name=d["name"], file_path=file_path,
+            description=d["description"],
+        )
+        session.run(
+            """
+            MATCH (f:TFFile {file_path: $file_path})
+            MATCH (ds:DataSource {type: $type, name: $name, file_path: $file_path})
+            MERGE (f)-[:USES_DATA]->(ds)
+            """,
+            file_path=file_path, type=d["type"], name=d["name"],
+        )
+
+    for p in data["providers"]:
+        session.run(
+            """
+            MERGE (prov:Provider {type: $type})
+            """,
+            type=p["type"],
+        )
+        session.run(
+            """
+            MATCH (f:TFFile {file_path: $file_path})
+            MATCH (prov:Provider {type: $type})
+            MERGE (f)-[:USES_PROVIDER]->(prov)
+            """,
+            file_path=file_path, type=p["type"],
+        )
 
 
 def _write_params(

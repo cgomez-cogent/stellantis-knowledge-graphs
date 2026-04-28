@@ -15,7 +15,8 @@ from pathlib import Path
 
 from graph.store import get_neo4j_driver
 from ingest.ast_parser import parse_module
-from ingest.graph_writer import clear_graph, write_parsed_module
+from ingest.tf_parser import parse_tf_file
+from ingest.graph_writer import clear_graph, write_parsed_module, write_parsed_tf_file
 from ingest.loaders import walk_files
 
 logger = logging.getLogger(__name__)
@@ -78,13 +79,20 @@ async def run_ingestion(directory: str) -> None:
         with driver.session() as session:
             for path in pending:
                 rel = str(path.relative_to(root)).replace("\\", "/")
-                data = parse_module(path, root)
+
+                if path.suffix == ".tf":
+                    data = parse_tf_file(path, root)
+                    writer = write_parsed_tf_file
+                else:
+                    data = parse_module(path, root)
+                    writer = write_parsed_module
+
                 if data is None:
                     print(f"  [skip] {rel} (syntax or read error)")
                     done_paths.add(rel)
                     continue
 
-                write_parsed_module(session, data)
+                writer(session, data)
                 done_paths.add(rel)
                 ingested += 1
                 print(f"  [{ingested}/{len(pending)}] {rel}")
