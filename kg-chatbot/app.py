@@ -5,14 +5,23 @@ Run with:
     streamlit run app.py
 """
 
-import asyncio
+import os
 
 import streamlit as st
-import streamlit.components.v1 as components
+
+# On Streamlit Community Cloud, config comes from the app's "Secrets" panel
+# (st.secrets), not from a .env file. Mirror it into os.environ *before*
+# importing any project module, since graph/store.py reads Neo4j settings
+# at import time. Locally, with no secrets.toml, st.secrets raises — fall
+# back to the .env file loaded by the project modules themselves.
+try:
+    for _key, _value in st.secrets.items():
+        os.environ.setdefault(_key, str(_value))
+except FileNotFoundError:
+    pass
 
 from chatbot.chain import ask, build_chain
 from chatbot.memory import get_memory
-from ingest.pipeline import run_ingestion
 from graph.visualizer import (
     NODE_COLORS,
     NODE_LABELS,
@@ -112,23 +121,11 @@ with st.sidebar:
         st.caption("The Cypher query will appear here after your first question.")
 
     st.divider()
-
-    # Re-ingestion
-    st.subheader("Re-index codebase")
-    folder_path = st.text_input(
-        "Codebase path",
-        placeholder="/path/to/project",
-        help="Absolute or relative path to the codebase you want to index.",
+    st.caption(
+        "Re-indexing was moved out of the UI for security — any allowed "
+        "viewer could otherwise wipe the shared graph. Run "
+        "`python -m ingest.pipeline /path/to/project` locally instead."
     )
-    if st.button("▶ Start ingestion", disabled=not folder_path):
-        with st.spinner(f"Indexing {folder_path}..."):
-            try:
-                asyncio.run(run_ingestion(folder_path))
-                st.success("Ingestion completed. Reload the page to use the updated graph.")
-                # Force chain reload to reflect the new schema
-                st.session_state.chain = build_chain(model=model, provider=provider)
-            except Exception as exc:
-                st.error(f"Error during ingestion: {exc}")
 
     st.divider()
     st.caption("Neo4j browser → http://localhost:7474")
@@ -279,4 +276,5 @@ with tab_graph:
     # ── Render iframe ─────────────────────────────────────────────────────────
     if st.session_state.graph_url:
         st.markdown("---")
-        components.iframe(st.session_state.graph_url, height=620, scrolling=False)
+        st.caption(f"[Open in a new tab]({st.session_state.graph_url}) if it doesn't render below.")
+        st.iframe(st.session_state.graph_url, height=620)

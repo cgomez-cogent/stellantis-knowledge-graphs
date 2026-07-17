@@ -126,6 +126,58 @@ Once your codebase is indexed, you can ask things like:
 
 ---
 
+## Deploying to a server (Neo4j Aura + Streamlit Community Cloud)
+
+This runs the graph store as a managed Neo4j instance and the chat UI as a
+hosted Streamlit app — no server to maintain, free tier on both.
+
+### 1. Create the Neo4j Aura instance
+
+1. Go to [console.neo4j.io](https://console.neo4j.io) and create a free
+   **AuraDB Free** instance.
+2. Download the generated credentials (or copy them) — you'll get a URI
+   like `neo4j+s://xxxxxxxx.databases.neo4j.io`, the username (`neo4j`) and
+   a generated password. `neo4j+s://` already enables TLS, no code changes
+   needed (see [graph/store.py](graph/store.py)).
+3. Once the instance is running, index your codebase against it: point a
+   local `.env` at the Aura URI and run `python -m ingest.pipeline /path/to/project`
+   from your machine (Aura has no shell access, so ingestion always runs
+   from a client that can reach it over Bolt).
+
+### 2. Deploy the app to Streamlit Community Cloud
+
+1. Push this repo to GitHub (already the case if you're reading this from
+   the deployed app).
+2. Go to [share.streamlit.io](https://share.streamlit.io) → **New app**,
+   authorize access to the repo, and set:
+   - **Main file path:** `kg-chatbot/app.py`
+   - **Branch:** the one you want to deploy
+3. Under **Advanced settings → Secrets**, paste your values using
+   [`.streamlit/secrets.toml.example`](.streamlit/secrets.toml.example) as
+   the template (real values, never commit this file — it's gitignored).
+   `app.py` mirrors `st.secrets` into environment variables at startup, so
+   the rest of the code needs no changes to run on Streamlit Cloud.
+4. Deploy. First load builds the LangChain/Neo4j connection using the
+   secrets above.
+
+### 3. Restrict access
+
+By default a Community Cloud app is public to anyone with the link — this
+graph exposes your codebase structure, so lock it down:
+**App settings → Sharing → "Only specific people can view this app"**, then
+add the allowed emails or your Google Workspace domain.
+
+### Limitations of this setup
+
+- The **"Re-index codebase"** button in the sidebar only sees paths inside
+  the deployed container (i.e. this repo itself) — Streamlit Cloud has no
+  access to your other local projects. For indexing external codebases,
+  run `python -m ingest.pipeline` locally against the Aura URI instead.
+- The container filesystem is ephemeral: anything written outside Aura
+  (e.g. `.kg_cache` checkpoints) is lost on redeploy.
+
+---
+
 ## Project structure
 
 ```

@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 from langchain_neo4j import Neo4jGraph
 from neo4j import GraphDatabase, Driver
 
-load_dotenv()
+load_dotenv(override=True)  # .env always wins over stray OS-level env vars
 
 _NEO4J_URI = os.getenv("NEO4J_URI")
 _NEO4J_USER = os.getenv("NEO4J_USER")

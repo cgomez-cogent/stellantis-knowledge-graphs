@@ -16,7 +16,8 @@ from chatbot.memory import ConversationMemory
 from graph.store import get_neo4j_graph
 
 load_dotenv(
-    dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env')
+    dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'),
+    override=True,  # .env always wins over stray OS-level env vars
 )
 
 # Prompt that guides the LLM to generate Cypher for this codebase
@@ -120,6 +121,11 @@ def build_chain(model: str, provider: str) -> GraphCypherQAChain:
             model=model,
             google_api_key=os.getenv("GOOGLE_API_KEY"),
             temperature=0,  # deterministic responses for Cypher
+            # Forces REST instead of gRPC — when gcloud ADC is present on the
+            # machine, the gRPC transport prioritizes it over this api_key,
+            # and generativelanguage.googleapis.com rejects it with
+            # "ACCESS_TOKEN_TYPE_UNSUPPORTED".
+            transport="rest",
         )
     elif provider == "openai":
         # Configure OpenAI LLM

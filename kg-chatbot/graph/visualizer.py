@@ -251,6 +251,11 @@ def build_graphistry_url(nodes_df: pd.DataFrame, edges_df: pd.DataFrame) -> str:
         .edges(edges_df, "src", "dst")
         .nodes(nodes_df, "id")
         .bind(point_title="display_name", edge_label="rel_type", point_color="color")
+        # Personal API keys upload plots as private by default, which the
+        # embedded iframe (no Graphistry Hub session) can't render — anyone
+        # with the URL can already reach this data through the app's own
+        # access controls, so make plots viewable via link.
+        .privacy(mode="public")
     )
 
     return g.plot(render=False)
