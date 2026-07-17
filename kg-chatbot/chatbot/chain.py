@@ -6,7 +6,7 @@ to Cypher queries against Neo4j and synthesizes the response with the chosen LLM
 import os
 
 from dotenv import load_dotenv
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic

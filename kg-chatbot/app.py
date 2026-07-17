@@ -69,7 +69,7 @@ if "graph_url" not in st.session_state:
     st.session_state.graph_url = None
 
 LLM_OPTIONS = {
-    "google": ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"],
+    "google": ["gemini-3.1-flash-lite-preview", "gemini-flash-latest", "gemini-2.0-flash"],
     "openai": ["gpt-4", "gpt-4o", "gpt-3.5-turbo"],
     "anthropic": ["claude-3-opus", "claude-3-sonnet"]
 }
