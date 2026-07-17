@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "skills": {
+    "graphistry": {
+      "source": "graphistry/graphistry-skills",
+      "sourceType": "github",
+      "computedHash": "b9d9d986645ec034c4d00f8eb25200e420d2b9de288883f0df2b479d9df49678"
+    },
+    "graphistry-rest-api": {
+      "source": "graphistry/graphistry-skills",
+      "sourceType": "github",
+      "computedHash": "42ea455816a854b2a1d0f926a7fb44de71c3318766df590fb54219622b20693d"
+    },
+    "pygraphistry": {
+      "source": "graphistry/graphistry-skills",
+      "sourceType": "github",
+      "computedHash": "15eb951ba7cfaca6e05b9207fde678905c48f9333925a6dec389d525305ef9e1"
+    },
+    "pygraphistry-ai": {
+      "source": "graphistry/graphistry-skills",
+      "sourceType": "github",
+      "computedHash": "908b66375776a6c1aeec9e46026d7dc6799440b4f4928fbc748115b54013694c"
+    },
+    "pygraphistry-connectors": {
+      "source": "graphistry/graphistry-skills",
+      "sourceType": "github",
+      "computedHash": "194eb430ef1ad5eec1eb70c0f093075bcfe717b4d79a56e89ed8ca3067510aa7"
+    },
+    "pygraphistry-core": {
+      "source": "graphistry/graphistry-skills",
+      "sourceType": "github",
+      "computedHash": "130ddfe2ec06047909097cfcf57b3a40d49c22111a548a96f0cbd748db642881"
+    },
+    "pygraphistry-gfql": {
+      "source": "graphistry/graphistry-skills",
+      "sourceType": "github",
+      "computedHash": "9bfefd7ade00429cf8249dc4fb3b99ed54e3eef5d803813652d8b324acd1a7f4"
+    },
+    "pygraphistry-visualization": {
+      "source": "graphistry/graphistry-skills",
+      "sourceType": "github",
+      "computedHash": "914525db104a0ca3406c10ec6852b423df827e9a7e16ebeb0202af20b2e7822f"
+    }
+  }
+}
