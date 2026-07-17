@@ -82,10 +82,12 @@ def _write_class(session: Session, cls: dict, mod_name: str, file_path: str) -> 
         session.run(
             """
             MERGE (mt:Method {name: $name, file_path: $file_path, class_name: $class_name})
-            SET mt.line = $line, mt.docstring = $docstring, mt.returns = $returns
+            SET mt.line = $line, mt.docstring = $docstring, mt.returns = $returns,
+                mt.string_literals = $string_literals
             """,
             name=method["name"], file_path=file_path, class_name=cls["name"],
             line=method["line"], docstring=method["docstring"], returns=method["returns"],
+            string_literals=method["string_literals"],
         )
         session.run(
             """
@@ -102,10 +104,12 @@ def _write_function(session: Session, func: dict, mod_name: str, file_path: str)
     session.run(
         """
         MERGE (f:Function {name: $name, file_path: $file_path})
-        SET f.line = $line, f.docstring = $docstring, f.returns = $returns
+        SET f.line = $line, f.docstring = $docstring, f.returns = $returns,
+            f.string_literals = $string_literals
         """,
         name=func["name"], file_path=file_path,
         line=func["line"], docstring=func["docstring"], returns=func["returns"],
+        string_literals=func["string_literals"],
     )
     session.run(
         """

@@ -14,9 +14,21 @@ import streamlit as st
 # importing any project module, since graph/store.py reads Neo4j settings
 # at import time. Locally, with no secrets.toml, st.secrets raises — fall
 # back to the .env file loaded by the project modules themselves.
+def _flatten_secrets(mapping, out):
+    for key, value in mapping.items():
+        # Secrets pasted under a [section] header come back as a nested
+        # mapping — flatten one level so NEO4J_URI etc. still land as
+        # top-level env vars regardless of how the TOML was structured.
+        if hasattr(value, "items"):
+            _flatten_secrets(value, out)
+        else:
+            out.setdefault(key, str(value))
+
+
 try:
-    for _key, _value in st.secrets.items():
-        os.environ.setdefault(_key, str(_value))
+    _env_from_secrets = {}
+    _flatten_secrets(st.secrets, _env_from_secrets)
+    os.environ.update(_env_from_secrets)
 except FileNotFoundError:
     pass
 

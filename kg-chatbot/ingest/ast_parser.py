@@ -46,6 +46,40 @@ def _parse_params(func_node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[dic
     return params
 
 
+def _docstring_node(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+    """Returns the Constant node holding the docstring, if any, so it can be
+    excluded when collecting string literals from the body."""
+    if (
+        node.body
+        and isinstance(node.body[0], ast.Expr)
+        and isinstance(node.body[0].value, ast.Constant)
+        and isinstance(node.body[0].value.value, str)
+    ):
+        return node.body[0].value
+    return None
+
+
+def _collect_string_literals(node, exclude=None, limit: int = 30) -> list[str]:
+    """Collects distinct non-empty string constants used in the body (e.g.
+    magic values, business codes like "TRM") so questions about *what a
+    function does internally*, not just its name/docstring, can be answered.
+    """
+    literals: list[str] = []
+    seen: set[str] = set()
+    for child in ast.walk(node):
+        if child is exclude:
+            continue
+        if isinstance(child, ast.Constant) and isinstance(child.value, str):
+            value = child.value.strip()
+            if not value or value in seen:
+                continue
+            seen.add(value)
+            literals.append(value)
+            if len(literals) >= limit:
+                break
+    return literals
+
+
 def _parse_function(node: ast.FunctionDef | ast.AsyncFunctionDef) -> dict:
     return {
         "name": node.name,
@@ -53,6 +87,7 @@ def _parse_function(node: ast.FunctionDef | ast.AsyncFunctionDef) -> dict:
         "docstring": ast.get_docstring(node) or "",
         "returns": _unparse(node.returns),
         "params": _parse_params(node),
+        "string_literals": _collect_string_literals(node, exclude=_docstring_node(node)),
     }
 
 

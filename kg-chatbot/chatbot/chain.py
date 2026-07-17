@@ -32,9 +32,16 @@ The graph may contain two types of content:
 Nodes and their key properties:
 - Module    : name, file_path
 - Class     : name, file_path, line, docstring
-- Method    : name, file_path, class_name, line, docstring, returns
-- Function  : name, file_path, line, docstring, returns
+- Method    : name, file_path, class_name, line, docstring, returns, string_literals
+- Function  : name, file_path, line, docstring, returns, string_literals
 - Parameter : name, parent_name, class_name, file_path, annotation, default
+
+`string_literals` is a LIST of the string constants/magic values used inside
+the function/method body (e.g. business codes, keys, flags like "TRM" or
+"ACTIVE_IND"). Use it to answer questions about internal logic/behavior that
+isn't described in the docstring — e.g. "where do we use code X",
+"what handles the TRM field". Search it with
+`any(lit IN n.string_literals WHERE toLower(lit) CONTAINS 'x')`.
 
 Relationships:
 - (Module)-[:DEFINES_CLASS]->(Class)
@@ -78,8 +85,55 @@ Terraform examples:
 - Providers declared    : MATCH (f:TFFile)-[:USES_PROVIDER]->(p:Provider) RETURN f.file_path, p.type
 - Data sources          : MATCH (f:TFFile)-[:USES_DATA]->(d:DataSource) RETURN d.type, d.name, f.file_path
 
-── SEMANTIC SEARCH (for conceptual questions) ────────────────────────────────
-Use CONTAINS on name/description/docstring when the question is about a concept:
+── SEMANTIC SEARCH (for conceptual / non-technical questions) ────────────────
+Most real users do NOT know exact class/function/variable names — they ask about
+a business concept in plain language (e.g. "how do we get the color of a part?",
+"where do we validate a VIN?", "what handles pricing?"). For these questions:
+
+- NEVER use exact equality (`{{name:'X'}}`) unless the question literally quotes
+  an identifier. Default to case-insensitive `CONTAINS` on every text property
+  that could hold the concept: name, docstring, description, annotation,
+  class_name, returns, default.
+- Think of 2-4 related keywords/synonyms for the SPECIFIC concept (e.g. "color" →
+  'color', 'colour', 'paint', 'hue') and OR them together.
+- Do NOT add generic domain nouns as extra OR keywords just because they appear
+  in the question (e.g. "part"/"parts", "record", "item", "data", "file"). In a
+  codebase about a specific domain, these words match a huge fraction of all
+  nodes — OR-ing them in adds noise that can crowd the real, specific matches
+  out of the LIMIT entirely. Only search for the word that actually narrows
+  down the result (e.g. for "the color of the parts", search 'color'/'colour',
+  NOT 'part').
+- Search across ALL node labels that could plausibly hold the concept in one
+  query, instead of guessing a single label. Use `any(lbl IN labels(n) WHERE
+  lbl IN [...])` for this — NEVER write `n:Class OR n:Method OR ...` (repeated
+  colon-label checks on the same variable are a common source of malformed
+  Cypher). NEVER wrap label names in backticks unless the label itself
+  literally contains a space or special character.
+- If you do need to combine more than one concept (e.g. two genuinely distinct
+  keywords that both matter), rank instead of just OR-and-LIMIT: compute how
+  many keyword groups each node matches with a `WITH n, (CASE WHEN ... THEN 1
+  ELSE 0 END) + (CASE WHEN ... THEN 1 ELSE 0 END) AS score` and `ORDER BY score
+  DESC` before the `LIMIT`, so the most relevant nodes surface first instead of
+  being pushed out by whichever keyword happens to be more common.
+- Always LIMIT results (10-20) and return `labels(n)[0] AS type` plus the
+  matched name/docstring so the answer can explain what was found and where.
+- If the question mentions a short code/field/flag (e.g. "TRM", "ACTIVE_IND")
+  that isn't a normal English word, it's likely a business/magic value used
+  INSIDE a function's logic, not its name or docstring — search
+  `string_literals` on Function/Method too, not just name/docstring.
+
+Examples:
+- "How do we get the color of the parts?" (the specific/narrowing term is
+  "color" — "parts" is generic domain noise here, do NOT OR it in):
+  MATCH (n) WHERE any(lbl IN labels(n) WHERE lbl IN ['Class','Method','Function','Parameter'])
+  AND (toLower(n.name) CONTAINS 'color' OR toLower(n.name) CONTAINS 'colour'
+       OR toLower(n.docstring) CONTAINS 'color' OR toLower(n.docstring) CONTAINS 'colour')
+  RETURN labels(n)[0] AS type, n.name, n.file_path, n.docstring LIMIT 20
+- "How do we work with TRM?" (a code, not an English word — check string_literals):
+  MATCH (n) WHERE any(lbl IN labels(n) WHERE lbl IN ['Function','Method'])
+  AND (toLower(n.name) CONTAINS 'trm' OR toLower(n.docstring) CONTAINS 'trm'
+       OR any(lit IN n.string_literals WHERE toLower(lit) CONTAINS 'trm'))
+  RETURN labels(n)[0] AS type, n.name, n.file_path, n.docstring, n.string_literals LIMIT 20
 - Resources related to networking: MATCH (n:Resource) WHERE toLower(n.type) CONTAINS 'vpc' OR toLower(n.type) CONTAINS 'subnet' OR toLower(n.description) CONTAINS 'network' RETURN n.type, n.name, n.file_path LIMIT 20
 - Variables related to storage   : MATCH (v:Variable) WHERE toLower(v.name) CONTAINS 'storage' OR toLower(v.description) CONTAINS 'storage' RETURN v.name, v.description LIMIT 10
 - Functions that parse            : MATCH (n:Function) WHERE toLower(n.name) CONTAINS 'parse' OR toLower(n.docstring) CONTAINS 'parse' RETURN n.name, n.docstring LIMIT 10
@@ -97,11 +151,35 @@ If you cannot build a valid query, respond with: MATCH (n) RETURN labels(n)[0] A
 # Prompt that guides the LLM to formulate the final answer
 _QA_PROMPT = PromptTemplate(
     input_variables=["context", "question"],
-    template="""You are a helpful assistant with deep knowledge of the codebase.
-Answer the question directly and naturally, as if you already know the codebase well.
-Never start with phrases like "Based on the data", "According to the graph", or similar.
-Never mention where the information comes from — just answer.
-If the information is insufficient, say so briefly and suggest what to look for.
+    template="""You are a helpful assistant with deep knowledge of a specific codebase,
+whose only source of truth is the Context below (retrieved from a Neo4j knowledge graph).
+
+Strict rules:
+- Answer using ONLY information present in Context. Never use outside/general knowledge,
+  never write new code, and never solve generic programming, math, or trivia questions —
+  even if you know the answer. Your job is to report what is in the graph, not to be a
+  general-purpose assistant.
+- If Context is empty or does not contain enough information to answer confidently, say
+  clearly that you could not find that information in the codebase graph. Do not guess or
+  make up an answer. Optionally suggest a close, related question the user might have meant
+  (based only on names/concepts that DO appear in Context, if any), and ask them to confirm
+  or rephrase.
+- If the question is not about the indexed codebase/infrastructure at all (e.g. asking you
+  to write a function, do unrelated general knowledge, etc.), say that you can only answer
+  questions about the code and infrastructure indexed in the graph.
+- When you do answer from Context, answer directly and naturally, as if you already know the
+  codebase well. Never start with phrases like "Based on the data", "According to the graph",
+  or similar, and never mention where the information comes from.
+- Assume the person asking is NOT a programmer and may not know class/function/file names.
+  Explain in plain, everyday language what the code does and where, instead of just dumping
+  raw property names. Briefly translate technical terms if you use them (e.g. "the
+  `get_part_color` function, which looks up a part's color").
+- NEVER expand, define, or guess the meaning of an acronym/abbreviation/code (e.g. "EPC",
+  "TRM", "ESPCLR") unless Context itself literally states what it stands for. Codebases
+  routinely reuse acronyms for company- or project-specific things that do NOT match their
+  common industry meaning — inventing a plausible-sounding expansion (even a well-known one
+  like "Electronic Parts Catalog" for "EPC") is a hallucination. If Context doesn't say what
+  it means, just use the acronym as-is and, if useful, say its meaning isn't documented here.
 
 Context:
 {context}
@@ -173,8 +251,9 @@ def ask(chain: GraphCypherQAChain, question: str, memory: ConversationMemory | N
 
     result = chain.invoke({"query": enriched_question})
 
-    # Extract the Cypher from intermediate steps
+    # Extract the Cypher and the raw query results from intermediate steps
     cypher = ""
+    context = None
     steps = result.get("intermediate_steps", [])
     if steps:
         first_step = steps[0]
@@ -182,8 +261,22 @@ def ask(chain: GraphCypherQAChain, question: str, memory: ConversationMemory | N
             cypher = first_step.get("query", "")
         elif isinstance(first_step, str):
             cypher = first_step
+    if len(steps) > 1 and isinstance(steps[1], dict):
+        context = steps[1].get("context")
 
-    answer = result.get("result", "No answer.")
+    # Don't trust the QA LLM's answer if the Cypher query returned nothing —
+    # it tends to fabricate a plausible-sounding answer instead of admitting
+    # it found no matching nodes. Short-circuit with a fixed message so this
+    # behavior doesn't depend on the LLM following the prompt's instructions.
+    if not cypher or context == []:
+        answer = (
+            "I couldn't find any matching information in the codebase graph "
+            "for that question. Could you rephrase it, or let me know if you "
+            "meant something similar (e.g. a different class, function, or "
+            "resource name)?"
+        )
+    else:
+        answer = result.get("result", "No answer.")
 
     if memory is not None:
         memory.add_turn(human=question, ai=answer)
